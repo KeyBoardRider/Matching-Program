@@ -1,4 +1,5 @@
 from itertools import count
+from re import T
 from sqlite3 import DatabaseError
 import pandas as pd
 import PyPDF2 as pdf
@@ -11,7 +12,9 @@ import openpyxl as xl
 #dfs = tab.read_pdf(r'Fiche.pdf', pages='all')
 dfs = tab.read_pdf(r'C:\Users\Oussama\Desktop\Excel-Matching-master\Fiche.pdf', output_format= 'json', encoding='cp1252', guess = False,pages = 'all')
 
-print(dfs)
+#print(dfs)
+
+
 
 
 #print dataframe
@@ -23,6 +26,17 @@ def get_text(dfs):
         for i in range(len(dfs[z]['data'])):
             for j in range(len(dfs[z]['data'][0])):
                 text.append(dfs[z]['data'][i][j]["text"])
+
+    
+
+    #remove "!" from text
+    for i in range(len(text)):
+        for j in range(len(text[i])-3):
+            #check if string includes ! and remove it
+            if text[i][j:j+2] == "! ":
+                text[i] = text[i][:j] + text[i][j+2:]
+
+
     return text
 
 text = get_text(dfs)
@@ -36,6 +50,13 @@ Plastic_Tax = [] #004801
 Parafiscal_Tax = [] #007217
 Custom_V = []
 
+
+def filterExclamationPoints(text):
+    if "!" in text:
+        textList = list(text)
+        textList.remove("!")
+        text = "".join(textList)    
+    return text
 
 def sort(text):
     #check if string includes NUMERO SH 
@@ -53,7 +74,7 @@ def sort(text):
                     if text[i][j].isdigit():
                         Temp.append(text[i][j])
                         Count += 1
-                        print (Temp)
+                        #print (Temp)
                     else:
                         Count = 0
                         Temp = []
@@ -80,6 +101,7 @@ def sort(text):
                 for j in range(len(text[i+1])-1):
                     if text[i+1][j] == ' ' or text[i+1][j] == '!':
                         text[i+1] = text[i+1].replace(text[i+1][j], '')
+                        print("in the if: " , text[i+1])
                     #if text[i+1][j] == ',':
                     #    text[i+1][j] = text[i+1].replace(text[i+1][j], '.')
                                   
@@ -203,6 +225,7 @@ def sort(text):
                     if text[i][j] == "!":
                         if len(Temp) != 0:
                             Parafiscal_Tax.append(''.join(Temp))
+                            #print(Temp)
                             Temp = []
                 i+=1
         i+=1
@@ -251,6 +274,7 @@ def output():
         for j in range(len(Plastic_Tax)):
             if i+1 == Plastic_Tax[j]:
                 Temp.append(Plastic_Tax[j+4])
+                print(Plastic_Tax[j+4])
         if len(Temp) == 0:
             table[5].append('0')
         else:
@@ -264,11 +288,15 @@ def output():
         for j in range(len(Parafiscal_Tax)):
             if i+1 == Parafiscal_Tax[j]:
                 Temp.append(Parafiscal_Tax[j+4])
-                print(i+1,Parafiscal_Tax[i])
+
         if len(Temp) == 0:
             table[6].append('0')
         else:
             table[6].append(Temp[0])
+
+    for i in range(len(table[2])):
+        table[2][i] = filterExclamationPoints(table[2][i])
+
 
     for i in range(len(table[2])):
         # replace comma with dot
@@ -278,8 +306,6 @@ def output():
     #table = [["SH_Codes"],["Quantities"],["Declared Value"],["Customs Duty"],["Forest Tax"],["Plastic Tax"],["Parafiscal Tax"]]
     extractedData = pd.DataFrame({"SH_Codes": table[0], "Quantities": table[1], "Declared Values": table[2], "Customs Duty": table[3], "Forest Tax" : table[4], "Plastic Tax" : table[5], "Parafiscal Tax": table[6]})
 
-    print(extractedData)
-
     extractedData.to_excel("output.xlsx", index=False)
 
     return table
@@ -288,3 +314,4 @@ def output():
 sort(text)
 
 table = output()
+

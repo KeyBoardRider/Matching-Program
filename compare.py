@@ -37,25 +37,26 @@ def getMatches(ficheDF, systemDF, threshold):
     print("looking for matches...")
     # loop through each line in ficheDF and check if line is in systemDF
     for index, row in ficheDF.iterrows():
-        # check if SH_Code is in systemDF
-        if isIn(row[SH_Codes], systemDF['SH_Codes']):
+
+        #### check if SH_Code is in systemDF !! blocking in case of mismatched SH codes
+        #if isIn(row[SH_Codes], systemDF['SH_Codes']):
             # get list of indexes of row in systemDF
-            indexList = systemDF[systemDF['SH_Codes'] == row[SH_Codes]].index
-            print(indexList)
-            # loop through each index in indexList
-            for i in indexList:
-                #print(index,i)
-                #print(fabs(row[Quantities] - systemDF['Quantities'][i]))
-                #print(row[Quantities], systemDF['Quantities'][i])
-                if fabs(row[Quantities] - systemDF['Quantities'][i]) < threshold:
-                    if fabs(row[DeclaredValues] - systemDF['Declared Values'][i]) < threshold:
-                        if fabs(row[CustomsDuty] - systemDF['Customs Duty'][i]) < threshold:
-                            if fabs(row[ForestTax] - systemDF['Forest Tax'][i]) < threshold:
-                                if fabs(row[PlasticTax] - systemDF['Plastic Tax'][i]) < threshold:
-                                    if fabs(row[ParafiscalTax] - systemDF['Parafiscal Tax'][i]) < threshold:
-                                        # save i and index into matches list
-                                        matches.append([i, index])
-                                        break
+            #indexList = systemDF[systemDF['SH_Codes'] == row[SH_Codes]].index
+        #print(indexList)
+        # loop through each index in indexList
+        temp = []
+        for i in range(len(systemDF)):
+            if row[Quantities] == systemDF['Quantities'][i]:
+                if fabs(row[DeclaredValues] - systemDF['Declared Values'][i]) < threshold:
+            #        if fabs(row[CustomsDuty] - systemDF['Customs Duty'][i]) < threshold:
+            #            if fabs(row[ForestTax] - systemDF['Forest Tax'][i]) < threshold:
+            #                if fabs(row[PlasticTax] - systemDF['Plastic Tax'][i]) < threshold:
+            #                    if fabs(row[ParafiscalTax] - systemDF['Parafiscal Tax'][i]) < threshold:
+                                    # save i and index into matches list
+                    #if index in [x[1] for x in index]:
+                    matches.append([i, index])
+                    break
+
     return matches
 
 
@@ -125,21 +126,20 @@ def getGroups(ficheDF, systemDF, threshold):
                         # add quantity to sumDeclaredValue
                         sumDeclaredValue += systemDF['Declared Values'][k]
                 # check if sumDeclaredValue is close enough to systemDeclaredValue
-                #print("sumDeclaredValue: " + str(sumDeclaredValue))
-                #print("systemDeclaredValue: " + str(ficheDF['Declared Values'][i]))
                 if abs(sumDeclaredValue - ficheDF['Declared Values'][i]) < threshold:
-                    #print("match found")
                     # get current binary number
                     currentBinary = '0b' + binary
                     # add currentBinary to matches list
                     groups.append([currentBinary, i])
                     break
+        print("Progress: " + str(i) + " / " + str(linesLeftFiche))
     return groups
 
 
 def removeMatches(matches, ficheDF, systemDF):
     # remove matches from ficheDF and systemDF
     for i in matches:
+        print(i)
         ficheDF = ficheDF.drop(i[1])
         systemDF = systemDF.drop(i[0])
     # reset index
@@ -218,12 +218,14 @@ def main():
     # print number of rows in systemDF
     print("Number of rows in systemDF: " + str(systemDF.shape[0]))
 
-    matches = getMatches(ficheDF, systemDF, 20)
+    matches = getMatches(ficheDF, systemDF, 200)
     print("Matches: ", matches)
+    
 
     ficheDF, systemDF = removeMatches(matches, ficheDF, systemDF)
     print(ficheDF)
     print(systemDF)
+
 
     corrected = [] #getCorrected(ficheDF, systemDF)
     print("Corrected: ", corrected)
