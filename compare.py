@@ -3,6 +3,7 @@ from math import fabs
 
 
 
+
 # set option to show all rows
 pd.set_option('display.max_rows', None)
 
@@ -34,7 +35,7 @@ def isIn(SH_Code, row):
 
 def getMatches(ficheDF, systemDF, threshold):
     matches = []
-    print("looking for matches...")
+    ("looking for matches...")
     # loop through each line in ficheDF and check if line is in systemDF
     for index, row in ficheDF.iterrows():
 
@@ -48,17 +49,50 @@ def getMatches(ficheDF, systemDF, threshold):
         for i in range(len(systemDF)):
             if row[Quantities] == systemDF['Quantities'][i]:
                 if fabs(row[DeclaredValues] - systemDF['Declared Values'][i]) < threshold:
-            #        if fabs(row[CustomsDuty] - systemDF['Customs Duty'][i]) < threshold:
-            #            if fabs(row[ForestTax] - systemDF['Forest Tax'][i]) < threshold:
-            #                if fabs(row[PlasticTax] - systemDF['Plastic Tax'][i]) < threshold:
-            #                    if fabs(row[ParafiscalTax] - systemDF['Parafiscal Tax'][i]) < threshold:
-                                    # save i and index into matches list
-                    #if index in [x[1] for x in index]:
-                    matches.append([i, index])
-                    break
+                    # check for repeating matches[][0]
+                    iList = [x[0] for x in matches]
+                    if i in iList:
+                        iPos = iList.index(i)
+                        # get index of previous match
+                        print(matches[iPos][1], index)
+                        print("Checked",str(systemDF['SH_Codes'][i]), str(ficheDF['SH_Codes'][index]),i,index, "and", matches[iPos] ,matches[iPos][1])
+                        if str(systemDF['SH_Codes'][i])[:4] == str(ficheDF['SH_Codes'][matches[iPos][1]])[:4]:
+                            if str(systemDF['SH_Codes'][i])[:4] == str(ficheDF['SH_Codes'][index])[:4]:
+                                # check declared values
+                                alreadyDiff = fabs(ficheDF['Declared Values'][matches[iPos][1]] - systemDF['Declared Values'][i])
+                                newDiff = fabs(ficheDF['Declared Values'][index] - systemDF['Declared Values'][i])
+                                if  newDiff < alreadyDiff:
+                                    matches[iPos][1] = index
+                                    print("replaced:", iPos[1], index)
+                        elif str(systemDF['SH_Codes'][i])[:4] == str(ficheDF['SH_Codes'][index])[:4]:
+                            print(i, index)
+                            matches[iPos]= [i, index]
+                        else:
+                            print("none of them matches HS code")
 
+                    # check for repeating matches[][1]
+                    iList = [x[1] for x in matches]
+                    if index in iList:
+                        iPos = iList.index(index)
+                        # get index of previous match
+                        print(matches[iPos][0], i)
+                        #print("Checked",str(systemDF['SH_Codes'][i])[:4], str(ficheDF['SH_Codes'][index])[:4])
+                        if str(ficheDF['SH_Codes'][index])[:4] == str(systemDF['SH_Codes'][matches[iPos][0]])[:4]:
+                            if str(ficheDF['SH_Codes'][index])[:4] == str(systemDF['SH_Codes'][i])[:4]:
+                                # check declared values
+                                alreadyDiff = fabs(ficheDF['Declared Values'][matches[iPos][0]] - systemDF['Declared Values'][i])
+                                newDiff = fabs(ficheDF['Declared Values'][index] - systemDF['Declared Values'][i])
+                                if  newDiff < alreadyDiff:
+                                    matches[iPos][0] = i
+                        elif str(ficheDF['SH_Codes'][index])[:4] == str(systemDF['SH_Codes'][i])[:4]:
+                                print(i, index)
+                                matches[iPos]= [i, index]
+                        else:
+                            print("none of them matches HS code")
+                    else:
+                        matches.append([i, index])
+                        print("added: ", i, index)
     return matches
-
 
 
 
@@ -87,6 +121,8 @@ def getCorrected(ficheDF, systemDF):
     return corrected
 
 
+
+
 def getGroups(ficheDF, systemDF, threshold):
     # the algorithm:
     # count number of lines left, each line is a bit for a binary number, loop through each number in binary and check if sumQuantity is equal to systemQuantity
@@ -103,45 +139,73 @@ def getGroups(ficheDF, systemDF, threshold):
     #print(2**linesLeftSys)
 
     # loop through each lineLeft in ficheDF
-    for i in range(linesLeftFiche):
+    # get even numbers smaller than 2**linesLeftFiche
+    even = [1]
+    odd = []
+    for i in range(2, 2**linesLeftFiche):
+        if i % 2 == 0:
+            even.append(i)
+        else:
+            odd.append(i)
+    path = even + odd
+    i = 0
+
+    linesLeftAfterFiche = linesLeftFiche
+    while i < len(path) and linesLeftAfterFiche > 0:
+        #if 
+        ficheBinary = bin(path[i])[2:]
+        while len(ficheBinary) < linesLeftFiche:
+            ficheBinary = "0" + ficheBinary
+        ficheSumQuantity = 0
+        ficheSumDeclaredValue = 0
+        for k in range(len(ficheBinary)):
+            if ficheBinary[k] == "1":
+                ficheSumQuantity += ficheDF['Quantities'][k]
+                ficheSumDeclaredValue += ficheDF['Declared Values'][k]
         # loop through each binary number
         for j in range(1, 2**linesLeftSys):
             # get binary representation of j
-            binary = bin(j)[2:]
-            while len(binary) < linesLeftSys:
-                binary = '0' + binary
-            #print("Checking configuration: " , binary)
+            sysBinary = bin(j)[2:]
+            while len(sysBinary) < linesLeftSys:
+                sysBinary = '0' + sysBinary
+            #print("Checking configuration: " , sysBinary)
             # get sumQuantity
             sumQuantity = 0
             for k in range(linesLeftSys):
-                if binary[k] == '1':
+                if sysBinary[k] == '1':
                     # add quantity to sumQuantity
                     sumQuantity += systemDF['Quantities'][k]
             # check if sumQuantity is equal to systemQuantity
-            if sumQuantity == ficheDF['Quantities'][i]:
+            if sumQuantity == ficheSumQuantity:
                 # get sumDeclaredValue
                 sumDeclaredValue = 0
                 for k in range(linesLeftSys):
-                    if binary[k] == '1':
+                    if sysBinary[k] == '1':
                         # add quantity to sumDeclaredValue
                         sumDeclaredValue += systemDF['Declared Values'][k]
                 # check if sumDeclaredValue is close enough to systemDeclaredValue
-                if abs(sumDeclaredValue - ficheDF['Declared Values'][i]) < threshold:
-                    # get current binary number
-                    currentBinary = '0b' + binary
-                    # add currentBinary to matches list
-                    groups.append([currentBinary, i])
+                if abs(sumDeclaredValue - ficheSumDeclaredValue) < threshold:
+                    # get current sysBinary number
+                    currentsysBinary = '0b' + sysBinary
+                    # add currentsysBinary to matches list
+                    groups.append([currentsysBinary, ficheBinary])
                     break
-        print("Progress: " + str(i) + " / " + str(linesLeftFiche))
+        i += 1
+
+
+
+        print("Progress: " + str(i) + " / " + str(2 ** linesLeftFiche))
     return groups
 
 
 def removeMatches(matches, ficheDF, systemDF):
     # remove matches from ficheDF and systemDF
     for i in matches:
-        print(i)
+        #print(i)
+        print("removing: ", i[0], i[1])
         ficheDF = ficheDF.drop(i[1])
         systemDF = systemDF.drop(i[0])
+
     # reset index
     ficheDF.reset_index(drop=True, inplace=True)
     systemDF.reset_index(drop=True, inplace=True)
@@ -158,7 +222,7 @@ def removeCorrected(corrected, ficheDF, systemDF):
     systemDF.reset_index(drop=True, inplace=True)
     return ficheDF, systemDF
 
-def removeGroups(groups, ficheDF, systemDF):
+def removeGroups(ficheDF, systemDF):
     # remove matches from ficheDF and systemDF
     for i in groups:
         for c in i[0]:
@@ -211,6 +275,8 @@ def main():
     ficheDF = pd.read_excel("output.xlsx")
     systemDF = pd.read_excel("outputsys.xlsx")
 
+    print(ficheDF)
+
     # drop columns from systemDF
     systemDF.drop(['Dried Plants Tax %', 'Customs Duty %', 'Forest Tax %', 'Plastic Tax %', 
         'Parafiscal Tax %', 'Sum of Dried Plants Tax Amount'], axis=1, inplace=True)
@@ -220,7 +286,6 @@ def main():
 
     matches = getMatches(ficheDF, systemDF, 200)
     print("Matches: ", matches)
-    
 
     ficheDF, systemDF = removeMatches(matches, ficheDF, systemDF)
     print(ficheDF)
@@ -243,6 +308,9 @@ def main():
 
     print("Number of rows in systemDF: " + str(systemDF.shape[0]))
     
+    matches2 = getMatches(ficheDF, systemDF, 200)
+    print("Matches: ", matches2)
+
 
     #calculateDeviation(ficheDF, systemDF, groups)
     
