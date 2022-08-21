@@ -1,5 +1,12 @@
-from SortFiche import table
+import SortFiche
+import formatTemplate
+import compare
 
-print (table)
+
+def main():
+    SortFiche.sortFiche()
+    formatTemplate.formatTemplate()
 
 
+if __name__ == '__main__':
+    main()

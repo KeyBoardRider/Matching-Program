@@ -10,11 +10,19 @@ import openpyxl as xl
 # Read pdf into list of DataFrame
 
 #dfs = tab.read_pdf(r'Fiche.pdf', pages='all')
-dfs = tab.read_pdf(r'C:\Users\Oussama\Desktop\Excel-Matching-master\Fiche.pdf', output_format= 'json', encoding='cp1252', guess = False,pages = 'all')
 
 #print(dfs)
 
 
+SH_Codes = []
+Dec_Values = []
+Quantities = []
+Taxes = []
+Customs_Tax = [] #000110 000120 000130
+Forest_Tax = [] #004400
+Plastic_Tax = [] #004801
+Parafiscal_Tax = [] #007217
+Custom_V = []
 
 
 #print dataframe
@@ -39,16 +47,6 @@ def get_text(dfs):
 
     return text
 
-text = get_text(dfs)
-SH_Codes = []
-Dec_Values = []
-Quantities = []
-Taxes = []
-Customs_Tax = [] #000110 000120 000130
-Forest_Tax = [] #004400
-Plastic_Tax = [] #004801
-Parafiscal_Tax = [] #007217
-Custom_V = []
 
 
 def filterExclamationPoints(text):
@@ -311,7 +309,15 @@ def output():
     return table
 
 
-sort(text)
 
-table = output()
+def sortFiche():
+    dfs = tab.read_pdf(r'C:\Users\Oussama\Desktop\Excel-Matching-master\Fiche.pdf', output_format= 'json', encoding='cp1252', guess = False,pages = 'all')
 
+    text = get_text(dfs)
+    sort(text)
+
+    output()
+
+
+if __name__ == "__main__":
+    sortFiche()
