@@ -317,6 +317,7 @@ def sortFiche():
     sort(text)
 
     output()
+    print("Fiche Sorted")
 
 
 if __name__ == "__main__":

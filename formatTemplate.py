@@ -13,7 +13,7 @@ def formatTemplate():
 
     # write to excel
     template.to_excel("outputsys.xlsx", index=False)
-    print("Template created")
+    print("Template formatted")
 
 
 if __name__ == '__main__':

@@ -7,6 +7,8 @@ def main():
     SortFiche.sortFiche()
     formatTemplate.formatTemplate()
 
+    compare.compare()
+
 
 if __name__ == '__main__':
     main()
