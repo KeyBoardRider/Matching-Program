@@ -1,10 +1,5 @@
-from itertools import count
-from re import T
-from sqlite3 import DatabaseError
 import pandas as pd
-import PyPDF2 as pdf
 import tabula as tab
-import openpyxl as xl
 
 
 # Read pdf into list of DataFrame
@@ -149,6 +144,12 @@ def sort(text):
                             Customs_Tax.append(''.join(Temp))
                             Temp = []
                 i+=1
+        elif text[i].find("000110") != -1:
+            print ("-------------------------------WARNING---------------------------------")
+            print ("Article " + str(ArticleCount) + " in Fiche has a 0130 Tax.")
+            print ("-----------------------------------------------------------------------")
+
+
         i+=1
         
     #Get Forest Tax

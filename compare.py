@@ -1,5 +1,7 @@
 import pandas as pd
 from math import fabs
+from pandas import ExcelWriter
+
 
 
 
@@ -33,65 +35,60 @@ def isIn(SH_Code, row):
             return True
     return False
 
-def getMatches(ficheDF, systemDF, threshold):
+def getMatches(ficheDF, systemDF,acceptableVar):
     matches = []
     ("looking for matches...")
     # loop through each line in ficheDF and check if line is in systemDF
     for index, row in ficheDF.iterrows():
-
-        #### check if SH_Code is in systemDF !! blocking in case of mismatched SH codes
-        #if isIn(row[SH_Codes], systemDF['SH_Codes']):
-            # get list of indexes of row in systemDF
-            #indexList = systemDF[systemDF['SH_Codes'] == row[SH_Codes]].index
-        #print(indexList)
+ 
         # loop through each index in indexList
         temp = []
         for i in range(len(systemDF)):
+            threshold = systemDF['Declared Values'][i] * acceptableVar
             if row[Quantities] == systemDF['Quantities'][i]:
                 if fabs(row[DeclaredValues] - systemDF['Declared Values'][i]) < threshold:
                     # check for repeating matches[][0]
                     iList = [x[0] for x in matches]
-                    if i in iList:
-                        iPos = iList.index(i)
-                        # get index of previous match
-                        print(matches[iPos][1], index)
-                        print("Checked",str(systemDF['SH_Codes'][i]), str(ficheDF['SH_Codes'][index]),i,index, "and", matches[iPos] ,matches[iPos][1])
-                        if str(systemDF['SH_Codes'][i])[:4] == str(ficheDF['SH_Codes'][matches[iPos][1]])[:4]:
-                            if str(systemDF['SH_Codes'][i])[:4] == str(ficheDF['SH_Codes'][index])[:4]:
-                                # check declared values
-                                alreadyDiff = fabs(ficheDF['Declared Values'][matches[iPos][1]] - systemDF['Declared Values'][i])
-                                newDiff = fabs(ficheDF['Declared Values'][index] - systemDF['Declared Values'][i])
-                                if  newDiff < alreadyDiff:
-                                    matches[iPos][1] = index
-                                    print("replaced:", iPos[1], index)
-                        elif str(systemDF['SH_Codes'][i])[:4] == str(ficheDF['SH_Codes'][index])[:4]:
-                            print(i, index)
-                            matches[iPos]= [i, index]
-                        else:
-                            print("none of them matches HS code")
-
-                    # check for repeating matches[][1]
-                    iList = [x[1] for x in matches]
-                    if index in iList:
-                        iPos = iList.index(index)
-                        # get index of previous match
-                        print(matches[iPos][0], i)
-                        #print("Checked",str(systemDF['SH_Codes'][i])[:4], str(ficheDF['SH_Codes'][index])[:4])
-                        if str(ficheDF['SH_Codes'][index])[:4] == str(systemDF['SH_Codes'][matches[iPos][0]])[:4]:
-                            if str(ficheDF['SH_Codes'][index])[:4] == str(systemDF['SH_Codes'][i])[:4]:
-                                # check declared values
-                                alreadyDiff = fabs(ficheDF['Declared Values'][matches[iPos][0]] - systemDF['Declared Values'][i])
-                                newDiff = fabs(ficheDF['Declared Values'][index] - systemDF['Declared Values'][i])
-                                if  newDiff < alreadyDiff:
-                                    matches[iPos][0] = i
-                        elif str(ficheDF['SH_Codes'][index])[:4] == str(systemDF['SH_Codes'][i])[:4]:
-                                print(i, index)
+                    if i in iList: 
+                        if i in iList:
+                            iPos = iList.index(i)
+                            # get index of previous match
+                            prevMatch = matches[iPos]
+                            nextMatch = [i, index]
+                            if str(systemDF['SH_Codes'][nextMatch[0]])[:4] == str(ficheDF['SH_Codes'][prevMatch[1]])[:4]:
+                                if str(systemDF['SH_Codes'][nextMatch[0]])[:4] == str(ficheDF['SH_Codes'][nextMatch[1]])[:4]:
+                                    # check declared values
+                                    newDiff = fabs(ficheDF['Declared Values'][index] - systemDF['Declared Values'][i])
+                                    alreadyDiff = fabs(ficheDF['Declared Values'][prevMatch[1]] - systemDF['Declared Values'][i])
+                                    if  newDiff < alreadyDiff and index not in [x[1] for x in matches]:
+                                        matches[iPos][1] = index
+                            elif str(systemDF['SH_Codes'][nextMatch[0]])[:4] == str(ficheDF['SH_Codes'][nextMatch[1]])[:4]:
                                 matches[iPos]= [i, index]
-                        else:
-                            print("none of them matches HS code")
+                            else:
+                                print("none of them matches HS code")
+
+                    elif index in [x[1] for x in matches]:
+                        # check for repeating matches[][1]
+                        iList = [x[1] for x in matches]
+                        if index in iList:
+                            iPos = iList.index(index)
+                            # get index of previous match
+                            prevMatch = matches[iPos]
+                            nextMatch = [i, index]    
+                            if str(ficheDF['SH_Codes'][nextMatch[1]])[:4] == str(systemDF['SH_Codes'][prevMatch[0]])[:4]:
+                                if str(ficheDF['SH_Codes'][nextMatch[1]])[:4] == str(systemDF['SH_Codes'][nextMatch[0]])[:4]:
+                                    # check declared values
+                                    alreadyDiff = fabs(ficheDF['Declared Values'][prevMatch[0]] - systemDF['Declared Values'][nextMatch[0]])
+                                    newDiff = fabs(ficheDF['Declared Values'][index] - systemDF['Declared Values'][i])
+                                    if  newDiff < alreadyDiff and i not in [x[0] for x in matches]:
+                                        matches[iPos][0] = i
+                            elif str(ficheDF['SH_Codes'][nextMatch[1]])[:4] == str(systemDF['SH_Codes'][nextMatch[0]])[:4]:
+                                    matches[iPos]= [i, index]
+                            else:
+                                print("none of them matches HS code")
+
                     else:
                         matches.append([i, index])
-                        print("added: ", i, index)
     return matches
 
 
@@ -115,13 +112,79 @@ def getCorrected(ficheDF, systemDF):
                     # replace systemQuantity with ficheQuantity
                     systemDF['Quantities'][i] = row[Quantities]
                     # save i and index into corrected list
-                    #print("Corrected: " + str(index) + " " + str(i))
                     corrected.append([i, index])
                     break
     return corrected
 
 
+def removeGroups(group, ficheDF, systemDF):
+    # remove matches from ficheDF and systemDF
+    
+    for j in range(2, len(group[0])):
+        if group[0][j] == "1":
+            systemDF.drop(j - 2, inplace=True)
 
+    for j in range(len(group[1])):
+        if group[1][j] == "1":
+            ficheDF.drop(j, inplace=True)
+    # reset index
+    ficheDF.reset_index(drop=True, inplace=True)
+    systemDF.reset_index(drop=True, inplace=True)   
+    return ficheDF, systemDF
+
+
+def extractDataFromGroup2(group, ficheDF, systemDF):
+    extractedData = [[], []]
+    for i in range(2, len(group[0])):
+        if group[0][i] == "1":
+            extractedData[0].append(systemDF.iloc[i-2])
+
+    for i in range(len(group[1])):
+        if group[1][i] == "1":
+            extractedData[1].append(ficheDF.iloc[i])
+    
+    return extractedData
+
+
+def getDeviationFromSavedData(save):
+    dCustomsDuty = 0
+    dForestTax = 0
+    dPlasticTax = 0
+    dParafiscalTax = 0
+    dTotal = 0
+
+
+    leftSide = save[0]
+    rightSide = save[1]
+
+    for x in leftSide:
+        dCustomsDuty += x['Customs Duty']
+        dForestTax += x['Forest Tax']
+        dPlasticTax += x['Plastic Tax']
+        dParafiscalTax += x['Parafiscal Tax']
+    
+    for x in rightSide:
+        dCustomsDuty -= x['Customs Duty']
+        dForestTax -= x['Forest Tax']
+        dPlasticTax -= x['Plastic Tax']
+        dParafiscalTax -= x['Parafiscal Tax']
+
+    return [dCustomsDuty, dForestTax, dPlasticTax, dParafiscalTax]
+
+
+def getDeviationFromGroups(save):
+    groupDeviations = []
+    for group in save:
+        groupDeviations.append(getDeviationFromSavedData(group))
+
+    #print("---------------------- Devation from groups ----------------------------")
+    #print("dCustomsDuty: ", groupDeviations[0][0])
+    #print("dForestTax: ", groupDeviations[0][1])
+    #print("dPlasticTax: ", groupDeviations[0][2])
+    #print("dParafiscalTax: ", groupDeviations[0][3])
+    #print("-----------------------------------------------------------------------")
+
+    return groupDeviations
 
 def getGroups(ficheDF, systemDF, threshold):
     # the algorithm:
@@ -130,13 +193,17 @@ def getGroups(ficheDF, systemDF, threshold):
     # then get current binary number and add it to matches list
     # if sumQuantity is not equal to systemQuantity, go to next binary
 
+    sumCustomDuty = 0
+    sumForestTax = 0
+    sumPlasticTax = 0
+    sumParafiscalTax = 0
     # count number of lines left
     linesLeftFiche = ficheDF.shape[0]
     linesLeftSys = systemDF.shape[0]
     groups = []
+    deviation = 0
 
-    #print(linesLeftFiche)
-    #print(2**linesLeftSys)
+    save = []
 
     # loop through each lineLeft in ficheDF
     # get even numbers smaller than 2**linesLeftFiche
@@ -152,7 +219,21 @@ def getGroups(ficheDF, systemDF, threshold):
 
     linesLeftAfterFiche = linesLeftFiche
     while i < len(path) and linesLeftAfterFiche > 0:
-        #if 
+        linesLeftFiche = ficheDF.shape[0]
+        linesLeftSys = systemDF.shape[0]
+
+        # loop through each lineLeft in ficheDF
+        # get even numbers smaller than 2**linesLeftFiche
+        #even = [1]
+        #odd = []
+        #for j in range(2, 2**linesLeftFiche):
+        #    if i % 2 == 0:
+        #        even.append(j)
+        #    else:
+        #        odd.append(j)
+        #path = even + odd
+
+        linesLeftAfterFiche = linesLeftFiche
         ficheBinary = bin(path[i])[2:]
         while len(ficheBinary) < linesLeftFiche:
             ficheBinary = "0" + ficheBinary
@@ -168,7 +249,6 @@ def getGroups(ficheDF, systemDF, threshold):
             sysBinary = bin(j)[2:]
             while len(sysBinary) < linesLeftSys:
                 sysBinary = '0' + sysBinary
-            #print("Checking configuration: " , sysBinary)
             # get sumQuantity
             sumQuantity = 0
             for k in range(linesLeftSys):
@@ -189,20 +269,31 @@ def getGroups(ficheDF, systemDF, threshold):
                     currentsysBinary = '0b' + sysBinary
                     # add currentsysBinary to matches list
                     groups.append([currentsysBinary, ficheBinary])
+                    print(groups)
+                    # save data from current group
+                    #save.append(extractDataFromGroup(groups[-1], ficheDF, systemDF))
+                    save.append(extractDataFromGroup2(groups[-1], ficheDF, systemDF))
+                    #getDeviationFromSavedData(save[-1], groups, ficheDF, systemDF)
+
+                    ficheDF, systemDF = removeGroups(groups[-1], ficheDF, systemDF)
+
+                    linesLeftAfterFiche = ficheDF.shape[0]
+                    i = 0
+                    
                     break
         i += 1
 
 
 
+        #print("Group Data: \n", save[-1])
         print("Progress: " + str(i) + " / " + str(2 ** linesLeftFiche))
-    return groups
+    return groups, ficheDF, systemDF, deviation , save
 
 
 def removeMatches(matches, ficheDF, systemDF):
     # remove matches from ficheDF and systemDF
+    print (matches)
     for i in matches:
-        #print(i)
-        print("removing: ", i[0], i[1])
         ficheDF = ficheDF.drop(i[1])
         systemDF = systemDF.drop(i[0])
 
@@ -212,70 +303,213 @@ def removeMatches(matches, ficheDF, systemDF):
     return ficheDF, systemDF
 
 
-def removeCorrected(corrected, ficheDF, systemDF):
-    # remove corrected from ficheDF and systemDF
-    for i in corrected:
-        ficheDF = ficheDF.drop(i[1])
-        systemDF = systemDF.drop(i[0])
-    # reset index
-    ficheDF.reset_index(drop=True, inplace=True)
-    systemDF.reset_index(drop=True, inplace=True)
-    return ficheDF, systemDF
-
-def removeGroups(ficheDF, systemDF):
-    # remove matches from ficheDF and systemDF
-    for i in groups:
-        for c in i[0]:
-            if c == "1":
-                systemDF.drop(i[0].index(c) - 2, inplace=True)
-        ficheDF.drop(i[1], inplace=True)
-    # reset index
-    ficheDF.reset_index(drop=True, inplace=True)
-    systemDF.reset_index(drop=True, inplace=True)
-    return ficheDF, systemDF
-
-
-def getDeviationFromGroups(groups, ficheDF, systemDF):
-    deviation = 0
-    for i in groups:
-        # get binary representation of group
-        binary = i[0][2:]
-        sumTaxValue = 0
-        for j in range(len(binary)):
-            if binary[j] == '1':
-                # add quantity to sumTaxValue
-                sumTaxValue += ficheDF['Tax_Values'][j]
-        # get systemTaxValue
-        systemTaxValue = systemDF['Tax_Values'][i[1]]
-        # calculate deviation
-        deviation += abs(sumTaxValue - systemTaxValue)
-    return deviation
-
-
-# is this function needed?
 def getDeviationFromFicheAndSystem(ficheDF, systemDF):
-    deviation = 0
+    ficheTotalDeclaredValue = 0
+    sumCustomDuty = 0
+    sumForestTax = 0
+    sumPlasticTax = 0
+    sumParafiscalTax = 0
+
+    totalDeviation = 0
+    matchesDeviation = 0
+
+    # get system total declared value
+    #systemTotalDeclaredValue = int(systemDF['Declared Values']).sum()
+
+
+    # get fiche total declared value
+    for i in range(len(ficheDF)):
+        ficheTotalDeclaredValue += int(ficheDF['Declared Values'][i])
+    
+    print ("ficheTotalDeclaredValue: " + str(ficheTotalDeclaredValue))
+
+    # get taxes from system
+    for i in range(systemDF.shape[0]):
+        sumCustomDuty += systemDF['Customs Duty'][i]
+        sumForestTax += systemDF['Forest Tax'][i]
+        sumPlasticTax += systemDF['Plastic Tax'][i]
+        sumParafiscalTax += systemDF['Parafiscal Tax'][i]
+        
+    #get taxes from fiche
     for i in range(ficheDF.shape[0]):
         # get sumTaxValue
-        sumTaxValue = ficheDF['Tax_Values'][i]
-        # get systemTaxValue
-        systemTaxValue = systemDF['Tax_Values'][i]
-        # calculate deviation
-        deviation += abs(sumTaxValue - systemTaxValue)
-    return deviation
+        sumCustomDuty -= ficheDF['Customs Duty'][i]
+        sumForestTax -= ficheDF['Forest Tax'][i]
+        sumPlasticTax -= ficheDF['Plastic Tax'][i]
+        sumParafiscalTax -= ficheDF['Parafiscal Tax'][i]
 
 
-def calculateDeviation(ficheDF, systemDF, groups):
-    # get deviation from groups
-    deviation = getDeviationFromGroups(groups, ficheDF, systemDF)
-    print("Deviation: " + str(deviation))
+    # calculate total deviation
+    totalDeviation = sumCustomDuty + sumForestTax + sumPlasticTax + sumParafiscalTax
+    
+    print("Deviation: " + str(totalDeviation))
+    print("Customs Duty: " + str(sumCustomDuty))
+    print("Forest Tax: " + str(sumForestTax))
+    print("Plastic Tax: " + str(sumPlasticTax))
+    print("Parafiscal Tax: " + str(sumParafiscalTax))
+
+    return totalDeviation, sumCustomDuty, sumForestTax, sumPlasticTax, sumParafiscalTax
+
+def getDeviationFromMatches(match,ficheDF,systemDF):
+    devMatch = []
+    #Get deviation from matches and store the matches with deviation in a list:
+        # Calculate allowable variation threshold
+    CDThreshold = 0.04 * (ficheDF['Declared Values'][match[1]] + systemDF['Declared Values'][match[0]]) / 2
+    FTThreshold = 0.04 * (ficheDF['Declared Values'][match[1]] + systemDF['Declared Values'][match[0]]) / 2
+    PTThreshold = 0.04 * (ficheDF['Declared Values'][match[1]] + systemDF['Declared Values'][match[0]]) / 2
+    PFThreshold = 0.025 * (ficheDF['Declared Values'][match[1]] + systemDF['Declared Values'][match[0]]) / 2
+
+    # Get system tax values
+
+    devFlag = 0
+    # get difference in tax rate
+    CDDevRate = systemDF['Customs Duty'][match[0]]/systemDF['Declared Values'][match[0]] - ficheDF['Customs Duty'][match[1]] / ficheDF['Declared Values'][match[1]]
+    FTDevRate = systemDF['Forest Tax'][match[0]]/systemDF['Declared Values'][match[0]] - ficheDF['Forest Tax'][match[1]] / ficheDF['Declared Values'][match[1]]
+    PTDevRate = systemDF['Plastic Tax'][match[0]]/systemDF['Declared Values'][match[0]] - ficheDF['Plastic Tax'][match[1]] / ficheDF['Declared Values'][match[1]]
+    PFDevRate = systemDF['Parafiscal Tax'][match[0]]/systemDF['Declared Values'][match[0]] - ficheDF['Parafiscal Tax'][match[1]] / ficheDF['Declared Values'][match[1]]
+
+    CDDev = systemDF['Customs Duty'][match[0]]- ficheDF['Customs Duty'][match[1]]
+    FTDev = systemDF['Forest Tax'][match[0]] - ficheDF['Forest Tax'][match[1]]
+    PTDev = systemDF['Plastic Tax'][match[0]] - ficheDF['Plastic Tax'][match[1]]
+    PFDev = systemDF['Parafiscal Tax'][match[0]] - ficheDF['Parafiscal Tax'][match[1]]
+
+    if fabs(CDDevRate) > 0.001 and abs(CDDev) > CDThreshold:
+        devFlag = 1
+
+    if fabs(FTDevRate) > 0.001 and abs(FTDev) > FTThreshold:
+        devFlag = 1
+
+    if fabs(PTDevRate) > 0.001 and abs(PTDev) > PTThreshold:
+        devFlag = 1
+
+    if  fabs(PFDevRate) > 0.001 and abs(PFDev) > PFThreshold:
+        devFlag = 1
+    if devFlag == 1:
+        devMatch.append(match)
+        devMatch.append(CDDev)
+        devMatch.append(FTDev)
+        devMatch.append(PTDev)
+        devMatch.append(PFDev)
+
+    return devMatch 
+
+    #return deviation #, sumCustomDuty, sumForestTax, sumPlasticTax, sumParafiscalTax
+
+#report the mismatched SH Codes
+#def SHMismatch()
+
+# show mismatched SH Codes in matches and groups
+def showMismatches1(matches, ficheDF, systemDF):
+    print("-------------------Mismatched SH Codes (one to one):-------------------")
+    for i in matches:
+        if ficheDF['SH_Codes'][i[1]] != systemDF['SH_Codes'][i[0]]:
+            print(systemDF['SH_Codes'][i[0]], " ",  ficheDF['SH_Codes'][i[1]])
+    print("-----------------------------------------------------------------------")
+
+def showMismatches2(save, ficheDF, systemDF):
+
+    print("---------------------Mismatched SH Codes (n to n'):---------------------")
+    for group in save:
+        for element in group[0]: 
+            for j in range(2, len(element)):
+                if str(element)[j] == 1:
+                    for k in range(len(group[1])):
+                        if str(group[1])[k] == 1:
+                            if ficheDF['SH_Codes'][j-2] != systemDF['SH_Codes'][k]:
+                                print(systemDF['SH_Codes'][j-2], " ",  ficheDF['SH_Codes'][k])
+    print("-----------------------------------------------------------------------")
+
+def groupsToExcel(save):
+    startrow = None
+    # create excel file
+    writer = pd.ExcelWriter('Deviation.xlsx', mode = 'a',engine="openpyxl",if_sheet_exists="replace")
+    # write to excel file
+    # blank dataframe
+    groupsDeviation = getDeviationFromGroups(save)
+    system = ["Invoice data"]
+    fiche = ["Fiche data"]
+    deviation = ["Deviation"]
+    space = [" "]
+    groupDFfinal = pd.DataFrame()
+    count = 0
+    for group in save: 
+        groupDFfinal = groupDFfinal.append(["-------------------------------------------------------"])
+        groupDFfinal = groupDFfinal.append(system)
+        groupDFfinal = groupDFfinal.append(group[0])
+        groupDFfinal = groupDFfinal.append(fiche)
+        groupDFfinal = groupDFfinal.append(group[1])
+        groupDFfinal = groupDFfinal.append(deviation)
+        groupDeviationDF = pd.DataFrame(groupsDeviation[count])
+        groupDeviationDF = groupDeviationDF.transpose()
+        # rename columns of groupDeviationDF
+        groupDeviationDF.columns = ['Customs Duty', 'Forest Tax', 'Plastic Tax', 'Parafiscal Tax']
+        groupDFfinal = groupDFfinal.append(groupDeviationDF)
+        count += 1
+        # append blank line
+        groupDFfinal = groupDFfinal.append(pd.DataFrame())
+
+        # try to open an existing workbook
+
+    groupDFfinal.to_excel(writer, sheet_name="Combinations Deviation" , index=False)
+    writer.save()
+    writer.close()
+    print("Excel file updated")
+    return
+
+def matchesToExcel(matches, ficheDF, systemDF):
+    writer = pd.ExcelWriter('Deviation.xlsx')
+    writeDF = pd.DataFrame()
+
+    for match in matches:
+        tempFiche = pd.DataFrame(ficheDF.loc[match[1]])
+        tempSys = pd.DataFrame(systemDF.loc[match[0]])
+
+        ficheDFToWrite = pd.DataFrame(ficheDF.loc[match[1]])
+        systemDFToWrite = pd.DataFrame(systemDF.loc[match[0]])
+        deviation = getDeviationFromMatches(match, ficheDF, systemDF)
+        if deviation == []:
+            deviationDF = pd.DataFrame({'Description': ['No deviation']})
+
+        else:
+            writeDF = writeDF.append(["-------------------------------------------------------"])
+            deviationDF = pd.DataFrame({'Description': ['Deviation']})
+            deviationDF['Customs Duty'] = deviation[1]
+            deviationDF['Forest Tax'] = deviation[2]
+            deviationDF['Plastic Tax'] = deviation[3]
+            deviationDF['Parafiscal Tax'] = deviation[4]
+
+            # turn rows into columns
+            ficheDFToWrite = ficheDFToWrite.transpose()
+            systemDFToWrite = systemDFToWrite.transpose()
+            # add columns named Description to ficheDFToWrite and systemDFToWrite
+            ficheDescription = ["Fiche Data: "]
+            systemDescription = ["System Data: "]
+
+            print(ficheDFToWrite)
+
+            ficheDFToWrite.insert(0, 'Description', ficheDescription, True)
+            systemDFToWrite.insert(0, 'Description', systemDescription, True)
+
+            # write Invoice Data in Description column
+            writeDF = writeDF.append(ficheDFToWrite)
+            writeDF = writeDF.append(systemDFToWrite)
+            # concat deviation
+            writeDF = pd.concat([writeDF, deviationDF])
 
 
-def main():
+    writeDF.to_excel(writer, sheet_name="One to One Deviation")
+    writer.save()
+    writer.close()
+
+
+def compare():
     ficheDF = pd.read_excel("output.xlsx")
     systemDF = pd.read_excel("outputsys.xlsx")
+    devMatches = []
 
-    print(ficheDF)
+
+    print("Fiche: ", ficheDF)
+    print("System: ", systemDF)
 
     # drop columns from systemDF
     systemDF.drop(['Dried Plants Tax %', 'Customs Duty %', 'Forest Tax %', 'Plastic Tax %', 
@@ -284,34 +518,57 @@ def main():
     # print number of rows in systemDF
     print("Number of rows in systemDF: " + str(systemDF.shape[0]))
 
-    matches = getMatches(ficheDF, systemDF, 200)
-    print("Matches: ", matches)
+    print("--------------------------Total Deviation--------------------------")
+    print("totalDeviation, sumCustomDuty, sumForestTax, sumPlasticTax, sumParafiscalTax")
+    print(getDeviationFromFicheAndSystem(ficheDF, systemDF))
+    print("-------------------------------------------------------------------")
 
-    ficheDF, systemDF = removeMatches(matches, ficheDF, systemDF)
-    print(ficheDF)
-    print(systemDF)
+    matches = getMatches(ficheDF, systemDF, 0.25)
+    matchesToExcel(matches,ficheDF,systemDF)
+
+    # Display matches deviation
+    count = 0
+    for i in range(len(matches)):
+        if getDeviationFromMatches(matches[i],ficheDF,systemDF) != []:
+            devMatches.append(getDeviationFromMatches(matches[i],ficheDF,systemDF))
 
 
-    corrected = [] #getCorrected(ficheDF, systemDF)
-    print("Corrected: ", corrected)
+            print("-------------------Deviation from Matches--------------------")
+
+            print("Deviation: ", devMatches[count])
+            print("System side: ", (systemDF.loc[devMatches[count][0][0]]))
+            print("Fiche side: ", ficheDF.loc[devMatches[count][0][1]])
+
+            print("-------------------------------------------------------------")
+            count += 1
+    
+
     #ficheDF, systemDF = removeCorrected(corrected, ficheDF, systemDF)
 
-    #print("FicheDF: ", ficheDF)
-    #print("SystemDF: ", systemDF)
+    # output mismatched SH Codes in matches  
+    showMismatches1(matches, ficheDF, systemDF)
 
-    groups = getGroups(ficheDF, systemDF, 100)
-    print("Groups: ", groups)
-    #removeGroups(groups, ficheDF, systemDF)
+    ficheDF, systemDF = removeMatches(matches, ficheDF, systemDF)
 
-    print("FicheDF: ", ficheDF)
-    print("SystemDF: ", systemDF)
+    groups, ficheDF, systemDF , groupsDeviation, save= getGroups(ficheDF, systemDF, 500)
+
+    # output mismatched SH Codes in groups
+    showMismatches2(save, ficheDF, systemDF)
+
+    print("Fiche: ", ficheDF)
+    print("System: ", systemDF)
+
+    print("-------------------Deviation from Remaining--------------------")
+    print(getDeviationFromFicheAndSystem(ficheDF, systemDF))
+    print("---------------------------------------------------------------")
 
     print("Number of rows in systemDF: " + str(systemDF.shape[0]))
-    
-    matches2 = getMatches(ficheDF, systemDF, 200)
-    print("Matches: ", matches2)
 
+    #Output mismatched SH Codes in matches and groups
+    #showMismatches(matches, groups, ficheDF, systemDF, save)
+
+    #Output groups to excel file
+    groupsToExcel(save)
 
     #calculateDeviation(ficheDF, systemDF, groups)
     
-main()
